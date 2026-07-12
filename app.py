@@ -251,14 +251,15 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
             shot_list = [x for x in s.get("shots", []) if isinstance(x, dict)]
             sb_html = render_shots(shot_list, shot_imgs, product_uri, show_images=(i == 0))
             blocks += f'''
-            <div class="force-new-page"></div>
-            <div class="script-version">
-              <div class="script-badge"><span class="letter">{letter}</span> สคริปต์ {letter}: {s.get("style","")}</div>
-              {hook_html}
-              {body}
-            </div>
-            <h3 class="sb-title">🎬 สตอรี่บอร์ดของสคริปต์ {letter} ({s.get("style","")})</h3>
-            {sb_html}'''
+            <div class="script-block">
+              <div class="script-version">
+                <div class="script-badge"><span class="letter">{letter}</span> สคริปต์ {letter}: {s.get("style","")}</div>
+                {hook_html}
+                {body}
+              </div>
+              <h3 class="sb-title">🎬 สตอรี่บอร์ดของสคริปต์ {letter} ({s.get("style","")})</h3>
+              {sb_html}
+            </div>'''
         script_html = blocks
     else:
         # เผื่อกรณี AI ตอบแบบเก่า
@@ -316,6 +317,8 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
   .script-hook {{ color: #C4502F; font-weight: bold; margin-bottom: 8px; }}
   .sb-title {{ color: #C4502F; font-size: 16px; margin: 14px 0 10px;
     padding-left: 8px; border-left: 4px solid #E8A48D; }}
+  .script-block {{ margin-bottom: 22px; padding-bottom: 8px;
+    border-bottom: 1px dashed #E5CDC4; }}
   .script-box {{
     background: white; border: 2px dashed #E8A48D; border-radius: 10px;
     padding: 16px 20px;
@@ -356,6 +359,8 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
     .script-box {{ page-break-inside: avoid; break-inside: avoid; }}
     h2.section {{ page-break-after: avoid; }}
     .force-new-page {{ page-break-before: always; }}
+    .script-block {{ page-break-inside: avoid; break-inside: avoid; }}
+    .shot-card {{ page-break-inside: avoid; break-inside: avoid; }}
     .shot-img {{ width: 170px; }}
     .shot-img img {{ max-height: 210px; }}
     .banner {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
@@ -385,7 +390,6 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
 </table>
 
 <!-- ==================== สคริปต์ + สตอรี่บอร์ด ==================== -->
-<div class="force-new-page"></div>
 <h2 class="section">2. สคริปต์ + สตอรี่บอร์ด — เลือกสไตล์ A ถึง E (TikTok Safe Script)</h2>
 <p class="note">*วิธีใช้: พนักงานเลือกสคริปต์ที่ชอบ (บอกหัวหน้าได้เลยว่าเอา A/B/C/D/E) แล้วถ่ายตามสตอรี่บอร์ดของสคริปต์นั้น ทุกสไตล์หลีกเลี่ยงคำต้องห้ามของ TikTok แล้ว*</p>
 {script_html}
