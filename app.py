@@ -86,8 +86,8 @@ preferred_model = st.sidebar.selectbox(
     index=0,
     help="รุ่น Pro ฉลาดสุดแต่ต้องเปิด billing ก่อน ถ้าบัญชีใช้ไม่ได้ระบบจะสลับไปตัวอื่นให้อัตโนมัติ",
 )
-draw_images = st.sidebar.toggle("🎨 ให้ AI วาดภาพประกอบสตอรี่บอร์ด", value=True,
-                                help="ถ้าปิดหรือบัญชีใช้โมเดลวาดภาพไม่ได้ จะใช้รูปสินค้าจริงแทน")
+draw_images = st.sidebar.toggle("🎨 ใส่ภาพประกอบในสตอรี่บอร์ด", value=False,
+                                help="ค่าเริ่มต้นคือปิด (เอกสารเป็นตัวหนังสือล้วน ประหยัดกระดาษ+เร็วกว่า) เปิดได้ถ้าต้องการภาพ")
 
 image_engine = st.sidebar.radio(
     "🖼️ แหล่งวาดภาพ",
@@ -203,30 +203,36 @@ def draw_with_dalle(oa_client, image_prompt: str) -> str:
 
 
 def render_shots(shots, shot_imgs, product_uri, show_images):
-    """สร้าง HTML การ์ดสตอรี่บอร์ด; show_images=True จะแสดงภาพ (เฉพาะสายแรก)"""
+    """สร้าง HTML การ์ดสตอรี่บอร์ด; show_images=True จะแสดงภาพประกอบ"""
     html = ""
     for s in shots:
         if not isinstance(s, dict):
             continue
-        img_block = ""
-        if show_images:
-            img_uri = shot_imgs.get(s.get("no"), product_uri)
-            cap = "ภาพประกอบ (AI)" if s.get("no") in shot_imgs else "ภาพอ้างอิง (รูปสินค้า)"
-            img_block = f'''<div class="shot-img">
-                  <img src="{img_uri}" alt="shot">
-                  <div class="img-cap">{cap}</div>
-                </div>'''
-        html += f'''
-        <div class="shot-card">
-          <div class="shot-head">ช็อตที่ {s.get('no','')}: {s.get('title','')} ({s.get('time','')})</div>
-          <div class="shot-body">
+        if show_images and shot_imgs.get(s.get("no")):
+            # มีภาพ: วางข้อความซ้าย ภาพขวา
+            img_uri = shot_imgs.get(s.get("no"))
+            body = f'''<div class="shot-body">
             <div class="shot-text">
               <p><b>บทพูด:</b> "{s.get('dialogue','-')}"</p>
               <p><b>มุมกล้อง:</b> {s.get('camera','-')}</p>
               <p><b>Action พนักงาน:</b> {s.get('action','-')}</p>
             </div>
-            {img_block}
-          </div>
+            <div class="shot-img"><img src="{img_uri}" alt="shot">
+              <div class="img-cap">ภาพประกอบ (AI)</div></div>
+          </div>'''
+        else:
+            # ไม่มีภาพ: ข้อความใช้เต็มความกว้าง
+            body = f'''<div class="shot-body">
+            <div class="shot-text" style="width:100%">
+              <p><b>บทพูด:</b> "{s.get('dialogue','-')}"</p>
+              <p><b>มุมกล้อง:</b> {s.get('camera','-')}</p>
+              <p><b>Action พนักงาน:</b> {s.get('action','-')}</p>
+            </div>
+          </div>'''
+        html += f'''
+        <div class="shot-card">
+          <div class="shot-head">ช็อตที่ {s.get('no','')}: {s.get('title','')} ({s.get('time','')})</div>
+          {body}
         </div>'''
     return html
 
@@ -359,8 +365,11 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
     .script-box {{ page-break-inside: avoid; break-inside: avoid; }}
     h2.section {{ page-break-after: avoid; }}
     .force-new-page {{ page-break-before: always; }}
-    .script-block {{ page-break-inside: avoid; break-inside: avoid; }}
+    /* ไม่ล็อกทั้งก้อน script-block แล้ว เพื่อให้เนื้อหาไหลเต็มทุกหน้า (ประหยัดกระดาษสุด) */
+    /* กันแค่ระดับย่อย: กล่องสคริปต์ และการ์ดช็อตเดียว ไม่ให้ถูกตัดกลาง */
+    .script-version {{ page-break-inside: avoid; break-inside: avoid; }}
     .shot-card {{ page-break-inside: avoid; break-inside: avoid; }}
+    .sb-title {{ page-break-after: avoid; }}
     .shot-img {{ width: 170px; }}
     .shot-img img {{ max-height: 210px; }}
     .banner {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
@@ -516,7 +525,7 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                 progress.empty()
             else:
                 if not st.session_state.image_note:
-                    st.session_state.image_note = "ปิดโหมดวาดภาพไว้ ใช้รูปสินค้าจริงเป็นภาพอ้างอิงแทน"
+                    st.session_state.image_note = "โหมดตัวหนังสือล้วน (ไม่มีภาพประกอบ) — เอกสารกระชับ ประหยัดกระดาษ"
 
             # ---------- ประกอบใบงาน HTML ----------
             uploaded_image.seek(0)
