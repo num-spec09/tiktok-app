@@ -172,7 +172,21 @@ def to_data_uri(data: bytes, mime: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(data).decode()}"
 
 
+def ascii_safe(text: str) -> str:
+    """กรองข้อความให้เหลือเฉพาะอักขระ ASCII ที่ปลอดภัย
+    (บางครั้ง AI ใส่ภาษาไทยใน image_prompt มา ทำให้ตัววาดภาพ error)"""
+    if not text:
+        return ""
+    # ตัดอักขระที่ไม่ใช่ ASCII ออก (เช่น อักษรไทย) เหลือแต่อังกฤษ/ตัวเลข/สัญลักษณ์
+    cleaned = text.encode("ascii", "ignore").decode("ascii").strip()
+    # ถ้ากรองแล้วเหลือน้อยเกินไป (แปลว่า prompt เป็นไทยล้วน) ใช้ข้อความสำรอง
+    if len(cleaned) < 10:
+        cleaned = "a Thai staff member demonstrating a pink skincare tube product"
+    return cleaned
+
+
 def draw_with_dalle(oa_client, image_prompt: str) -> str:
+    image_prompt = ascii_safe(image_prompt)
     """วาดภาพแนวตั้งด้วย DALL-E 3 คืนค่า data URI (base64)"""
     result = oa_client.images.generate(
         model="dall-e-3",
@@ -411,7 +425,7 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                     if not image_model_ok:
                         break
                     try:
-                        prompt_txt = shot.get("image_prompt", shot.get("action", ""))
+                        prompt_txt = ascii_safe(shot.get("image_prompt", ""))
                         if use_dalle:
                             # DALL-E: ข้อความอย่างเดียว
                             shot_imgs[shot["no"]] = draw_with_dalle(oa_client, prompt_txt)
