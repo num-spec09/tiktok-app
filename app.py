@@ -202,49 +202,69 @@ def draw_with_dalle(oa_client, image_prompt: str) -> str:
     return f"data:image/png;base64,{b64}"
 
 
-def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
-                         product_link: str) -> str:
-    """ประกอบใบงาน 2 หน้าเป็น HTML ดีไซน์แบบตัวอย่าง PDF"""
-    features_html = "".join(f"<li>{f}</li>" for f in data.get("features", []))
-
-    # สร้างการ์ดสคริปต์ 5 เวอร์ชัน (รองรับทั้งรูปแบบใหม่ scripts และเก่า script)
-    scripts = data.get("scripts")
-    if scripts:
-        script_cards = ""
-        for i, s in enumerate(scripts, 1):
-            body = "".join(f"<p>{p}</p>" for p in s.get("content", "").split("\n") if p.strip())
-            hook = s.get("hook", "")
-            hook_html = f'<p class="script-hook">🪝 Hook: {hook}</p>' if hook else ""
-            script_cards += f'''
-            <div class="script-version avoid-break">
-              <div class="script-badge">เวอร์ชันที่ {i}: {s.get("style","")}</div>
-              {hook_html}
-              {body}
-            </div>'''
-        script_html = script_cards
-    else:
-        # เผื่อกรณี AI ตอบแบบเก่า (script เดี่ยว)
-        script_html = "".join(f"<p>{p}</p>" for p in data.get("script", "").split("\n") if p.strip())
-
-    shots_html = ""
-    for s in data.get("shots", []):
-        img_uri = shot_imgs.get(s["no"], product_uri)
-        img_caption = "ภาพประกอบ (AI)" if s["no"] in shot_imgs else "ภาพอ้างอิง (รูปสินค้าจริง)"
-        shots_html += f"""
+def render_shots(shots, shot_imgs, product_uri, show_images):
+    """สร้าง HTML การ์ดสตอรี่บอร์ด; show_images=True จะแสดงภาพ (เฉพาะสายแรก)"""
+    html = ""
+    for s in shots:
+        if not isinstance(s, dict):
+            continue
+        img_block = ""
+        if show_images:
+            img_uri = shot_imgs.get(s.get("no"), product_uri)
+            cap = "ภาพประกอบ (AI)" if s.get("no") in shot_imgs else "ภาพอ้างอิง (รูปสินค้า)"
+            img_block = f'''<div class="shot-img">
+                  <img src="{img_uri}" alt="shot">
+                  <div class="img-cap">{cap}</div>
+                </div>'''
+        html += f'''
         <div class="shot-card">
-          <div class="shot-head">ช็อตที่ {s['no']}: {s.get('title','')} ({s.get('time','')})</div>
+          <div class="shot-head">ช็อตที่ {s.get('no','')}: {s.get('title','')} ({s.get('time','')})</div>
           <div class="shot-body">
             <div class="shot-text">
               <p><b>บทพูด:</b> "{s.get('dialogue','-')}"</p>
               <p><b>มุมกล้อง:</b> {s.get('camera','-')}</p>
               <p><b>Action พนักงาน:</b> {s.get('action','-')}</p>
             </div>
-            <div class="shot-img">
-              <img src="{img_uri}" alt="shot {s['no']}">
-              <div class="img-cap">ภาพช็อต {s['no']} — {img_caption}</div>
-            </div>
+            {img_block}
           </div>
-        </div>"""
+        </div>'''
+    return html
+
+
+def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
+                         product_link: str) -> str:
+    """ประกอบใบงาน 2 หน้าเป็น HTML ดีไซน์แบบตัวอย่าง PDF"""
+    features_html = "".join(f"<li>{f}</li>" for f in data.get("features", []))
+
+    # สร้างบล็อกสคริปต์ 5 เวอร์ชัน แต่ละเวอร์ชันตามด้วยสตอรี่บอร์ดของตัวเอง
+    scripts = data.get("scripts")
+    shots_html = ""  # ในโหมดใหม่ สตอรี่บอร์ดอยู่ในแต่ละสคริปต์แล้ว
+    if scripts:
+        blocks = ""
+        labels = ["A", "B", "C", "D", "E", "F", "G", "H"]  # เผื่อกรณีมีเกิน 5
+        for i, s in enumerate(scripts):
+            letter = labels[i] if i < len(labels) else str(i + 1)
+            body = "".join(f"<p>{p}</p>" for p in s.get("content", "").split("\n") if p.strip())
+            hook = s.get("hook", "")
+            hook_html = f'<p class="script-hook">🪝 Hook: {hook}</p>' if hook else ""
+            # สตอรี่บอร์ดของสคริปต์นี้ (แสดงภาพเฉพาะสายแรกเพื่อประหยัดโควตา)
+            shot_list = [x for x in s.get("shots", []) if isinstance(x, dict)]
+            sb_html = render_shots(shot_list, shot_imgs, product_uri, show_images=(i == 0))
+            blocks += f'''
+            <div class="force-new-page"></div>
+            <div class="script-version">
+              <div class="script-badge"><span class="letter">{letter}</span> สคริปต์ {letter}: {s.get("style","")}</div>
+              {hook_html}
+              {body}
+            </div>
+            <h3 class="sb-title">🎬 สตอรี่บอร์ดของสคริปต์ {letter} ({s.get("style","")})</h3>
+            {sb_html}'''
+        script_html = blocks
+    else:
+        # เผื่อกรณี AI ตอบแบบเก่า
+        script_html = "".join(f"<p>{p}</p>" for p in data.get("script", "").split("\n") if p.strip())
+        shots_html = render_shots([x for x in data.get("shots", []) if isinstance(x, dict)],
+                                   shot_imgs, product_uri, show_images=True)
 
     return f"""<!DOCTYPE html>
 <html lang="th">
@@ -283,11 +303,19 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
     padding: 14px 18px; margin-bottom: 14px;
   }}
   .script-badge {{
-    display: inline-block; background: #FBE3DA; color: #C4502F;
-    font-weight: bold; padding: 4px 14px; border-radius: 20px;
-    margin-bottom: 10px; font-size: 15px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #FBE3DA; color: #C4502F;
+    font-weight: bold; padding: 6px 16px 6px 6px; border-radius: 24px;
+    margin-bottom: 10px; font-size: 16px;
+  }}
+  .script-badge .letter {{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #E8714F; color: white; font-size: 17px; font-weight: bold;
   }}
   .script-hook {{ color: #C4502F; font-weight: bold; margin-bottom: 8px; }}
+  .sb-title {{ color: #C4502F; font-size: 16px; margin: 14px 0 10px;
+    padding-left: 8px; border-left: 4px solid #E8A48D; }}
   .script-box {{
     background: white; border: 2px dashed #E8A48D; border-radius: 10px;
     padding: 16px 20px;
@@ -343,8 +371,8 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
 
 <!-- ==================== หน้า 1 ==================== -->
 <div class="banner">
-  <h1>ใบงานผลิตคอนเทนต์ TikTok (หน้า 1/3)</h1>
-  <p>ข้อมูลสินค้า &amp; สคริปต์บทพูดพนักงาน</p>
+  <h1>ใบงานผลิตคอนเทนต์ TikTok</h1>
+  <p>ข้อมูลสินค้า + สคริปต์ 5 สไตล์ พร้อมสตอรี่บอร์ด</p>
 </div>
 
 <h2 class="section">1. รายละเอียดข้อมูลสินค้า (Product Details)</h2>
@@ -356,25 +384,11 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
       <td><div class="product-hero"><img src="{product_uri}" alt="product"></div></td></tr>
 </table>
 
-<!-- ==================== หน้า 2: สคริปต์ (ขึ้นหน้าใหม่เสมอ) ==================== -->
+<!-- ==================== สคริปต์ + สตอรี่บอร์ด ==================== -->
 <div class="force-new-page"></div>
-<div class="banner">
-  <h1>ใบงานผลิตคอนเทนต์ TikTok (หน้า 2/3)</h1>
-  <p>สคริปต์บทพูดพนักงาน (TikTok Safe Script)</p>
-</div>
-<h2 class="section">2. สคริปต์วิดีโอสำหรับพนักงาน — 5 สไตล์ให้เลือก (TikTok Safe Script)</h2>
-<p class="note">*หมายเหตุ: เลือกสไตล์ที่เหมาะกับสินค้าและตัวผู้ถ่าย ทุกเวอร์ชันหลีกเลี่ยงคำต้องห้ามของ TikTok แล้ว*</p>
+<h2 class="section">2. สคริปต์ + สตอรี่บอร์ด — เลือกสไตล์ A ถึง E (TikTok Safe Script)</h2>
+<p class="note">*วิธีใช้: พนักงานเลือกสคริปต์ที่ชอบ (บอกหัวหน้าได้เลยว่าเอา A/B/C/D/E) แล้วถ่ายตามสตอรี่บอร์ดของสคริปต์นั้น ทุกสไตล์หลีกเลี่ยงคำต้องห้ามของ TikTok แล้ว*</p>
 {script_html}
-
-<!-- ==================== หน้า 3: สตอรี่บอร์ด ==================== -->
-<div class="force-new-page"></div>
-<div class="banner">
-  <h1>ใบงานผลิตคอนเทนต์ TikTok (หน้า 3/3)</h1>
-  <p>สตอรี่บอร์ด &amp; มุมกล้องอ้างอิงสำหรับถ่ายทำ</p>
-</div>
-
-<h2 class="section">3. รายการช็อตและมุมกล้อง (Storyboard Shot List)</h2>
-{shots_html}
 
 <div class="toolbar">
   <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นใบงาน (Print)</button>
@@ -430,8 +444,8 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                      "image_prompt": "English prompt describing this exact shot for an illustration"}
                   ]
                 }
-                ให้มี scripts ทั้งหมด 5 เวอร์ชันตามสไตล์ที่ระบุ (แต่ละเวอร์ชันเนื้อหาต่างกันจริงๆ ไม่ใช่แค่เปลี่ยนคำ)
-                และ shots ทั้งหมด 5 ช็อต เวลารวมประมาณ 45 วินาที (สตอรี่บอร์ดอ้างอิงจากสคริปต์เวอร์ชันแรก)
+                ให้มี scripts ทั้งหมด 5 เวอร์ชันตามสไตล์ที่ระบุ แต่ละเวอร์ชันเนื้อหาต่างกันจริงๆ
+                และแต่ละเวอร์ชันมี shots (สตอรี่บอร์ด) 5 ช็อตของตัวเอง ที่สอดคล้องกับสคริปต์เวอร์ชันนั้น เวลารวมประมาณ 45 วินาที
                 ทุกข้อความเป็นภาษาไทย (ยกเว้น image_prompt เป็นอังกฤษ)
                 ห้ามใช้คำว่า ดีที่สุด, 100%, ขาวทันที, หายขาด ให้ใช้คำเลี่ยงที่ปลอดภัยตามกฎโฆษณา
                 """
@@ -462,9 +476,14 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
 
             if draw_images:
                 engine_label = "DALL-E 3" if use_dalle else "Gemini (Nano Banana)"
-                progress = st.progress(0, text=f"🎨 (2/2) กำลังวาดภาพด้วย {engine_label}...")
+                progress = st.progress(0, text=f"🎨 (2/2) กำลังวาดภาพประกอบ (สายแรก) ด้วย {engine_label}...")
                 image_model_ok = True
-                shots = data.get("shots", [])
+                # ดึง shots จากสคริปต์สายแรก (วาดภาพชุดเดียวเพื่อประหยัดโควตา)
+                scripts_data = data.get("scripts", [])
+                if scripts_data and isinstance(scripts_data[0], dict):
+                    shots = [x for x in scripts_data[0].get("shots", []) if isinstance(x, dict)]
+                else:
+                    shots = [x for x in data.get("shots", []) if isinstance(x, dict)]
                 for i, shot in enumerate(shots):
                     if not image_model_ok:
                         break
@@ -507,7 +526,11 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
 
             st.session_state.worksheet_html = build_worksheet_html(
                 data, shot_imgs, product_uri, product_link)
-            st.session_state.shots_data = data.get("shots", [])
+            _sd = data.get("scripts", [])
+            if _sd and isinstance(_sd[0], dict):
+                st.session_state.shots_data = _sd[0].get("shots", [])
+            else:
+                st.session_state.shots_data = data.get("shots", [])
 
         except json.JSONDecodeError:
             st.error("AI ตอบกลับมาในรูปแบบที่อ่านไม่ได้ ลองกดสร้างใหม่อีกครั้งครับ")
