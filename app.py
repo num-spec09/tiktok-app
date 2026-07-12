@@ -50,8 +50,19 @@ def check_password() -> bool:
         return True  # ถ้ายังไม่ได้ตั้งรหัสใน Secrets ก็ไม่ล็อก (ตอนทดสอบในเครื่อง)
     if st.session_state.get("password_ok"):
         return True
-    st.title("🔒 เข้าสู่ระบบ")
-    st.caption("เครื่องมือภายในทีม กรุณาใส่รหัสผ่านที่ได้รับจากหัวหน้า")
+    st.markdown("""
+    <style>
+    .stApp { background: #0a0a0a; }
+    .stApp p, .stApp label, .stApp span { color: #e8e8e8; }
+    .stTextInput input { background:#141414 !important; color:#eee !important;
+        border:0.5px solid #2a2a2a !important; border-radius:10px !important; }
+    </style>
+    <div style="text-align:center; padding: 40px 0 20px;">
+      <div style="font-size:40px;">🔒</div>
+      <div style="font-size:24px; font-weight:600; color:#fff; margin-top:8px;">TikTok Content Studio</div>
+      <div style="color:#8a8a8a; font-size:14px; margin-top:4px;">เครื่องมือภายในทีม · กรุณาใส่รหัสผ่านที่ได้รับจากหัวหน้า</div>
+    </div>
+    """, unsafe_allow_html=True)
     pwd = st.text_input("รหัสผ่าน", type="password")
     if pwd:
         if pwd == correct:
@@ -64,8 +75,70 @@ def check_password() -> bool:
 if not check_password():
     st.stop()
 
-st.title("🎬 เครื่องมือสร้างสคริปต์และสตอรี่บอร์ด TikTok")
-st.caption("วิเคราะห์สินค้า → ใบงาน 2 หน้าดีไซน์พร้อมปริ้น + ภาพประกอบทุกช็อต")
+# ===== ธีม TikTok พื้นดำ + สีฟ้าไซแอน/ชมพูแดง =====
+st.markdown("""
+<style>
+/* พื้นหลังแอปเป็นสีดำแบบ TikTok */
+.stApp { background: #0a0a0a; }
+[data-testid="stMainBlockContainer"] { max-width: 1100px; padding-top: 1rem; }
+/* ข้อความทั่วไปเป็นสีขาว */
+.stApp, .stApp p, .stApp label, .stApp span, .stApp div { color: #e8e8e8; }
+/* หัวข้อ label ของช่องกรอก */
+[data-testid="stTextArea"] label, [data-testid="stFileUploader"] label { color: #fff !important; font-weight: 500 !important; }
+/* กล่องกรอกข้อความพื้นเข้ม */
+.stTextArea textarea, .stTextInput input {
+    background: #141414 !important; color: #eee !important;
+    border: 0.5px solid #2a2a2a !important; border-radius: 10px !important;
+}
+/* ปุ่มอัปโหลด */
+[data-testid="stFileUploader"] section {
+    background: #141414 !important; border: 1.5px dashed #333 !important; border-radius: 10px !important;
+}
+/* ปุ่มหลัก (สร้างใบงาน) สีชมพูแดง TikTok */
+.stButton button[kind="primary"], .stButton button {
+    background: #FE2C55 !important; color: #fff !important;
+    border: none !important; border-radius: 10px !important;
+    font-weight: 500 !important; font-size: 16px !important; padding: 12px !important;
+}
+.stButton button:hover { background: #e02248 !important; }
+/* Sidebar พื้นเข้ม */
+[data-testid="stSidebar"] { background: #111 !important; }
+[data-testid="stSidebar"] * { color: #ddd !important; }
+/* การ์ดหัวและสถิติ */
+.tt-header {
+    background: linear-gradient(0deg,#0a0a0a,#0a0a0a); padding: 20px 26px; border-radius: 14px;
+    border: 0.5px solid #1f1f1f; display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+}
+.tt-logo { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+.tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 11px; }
+.tt-logo .l1 { background:#FE2C55; transform: translate(2px,2px); }
+.tt-logo .l2 { background:#00F2EA; transform: translate(-2px,-2px); }
+.tt-logo .l3 { background:#0a0a0a; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.tt-title { font-size: 21px; font-weight: 600; color: #fff; letter-spacing:-0.3px; }
+.tt-sub { font-size: 13px; color: #8a8a8a; }
+.tt-stats { display:flex; justify-content:center; gap:26px; margin: 6px 0 22px; }
+.tt-stat { text-align:center; }
+.tt-stat .n { font-size:22px; font-weight:600; }
+.tt-stat .l { font-size:11px; color:#777; }
+.tt-divider { width:0.5px; background:#2a2a2a; }
+</style>
+
+<div class="tt-header">
+  <div class="tt-logo"><div class="l1"></div><div class="l2"></div><div class="l3">🎵</div></div>
+  <div>
+    <div class="tt-title">TikTok Content Studio</div>
+    <div class="tt-sub">สร้างสคริปต์ + สตอรี่บอร์ด 5 สไตล์ จากข้อมูลสินค้า</div>
+  </div>
+</div>
+
+<div class="tt-stats">
+  <div class="tt-stat"><div class="n" style="color:#00F2EA">5</div><div class="l">สไตล์สคริปต์</div></div>
+  <div class="tt-divider"></div>
+  <div class="tt-stat"><div class="n" style="color:#fff">A–E</div><div class="l">เลือกง่าย</div></div>
+  <div class="tt-divider"></div>
+  <div class="tt-stat"><div class="n" style="color:#FE2C55">~30วิ</div><div class="l">ต่อใบงาน</div></div>
+</div>
+""", unsafe_allow_html=True)
 
 # ===== API Key: ดึงจากหลังบ้าน (Secrets) อัตโนมัติ พนักงานไม่ต้องกรอก =====
 api_key = get_secret("GEMINI_API_KEY", "")
