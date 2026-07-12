@@ -206,7 +206,25 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
                          product_link: str) -> str:
     """ประกอบใบงาน 2 หน้าเป็น HTML ดีไซน์แบบตัวอย่าง PDF"""
     features_html = "".join(f"<li>{f}</li>" for f in data.get("features", []))
-    script_html = "".join(f"<p>{p}</p>" for p in data.get("script", "").split("\n") if p.strip())
+
+    # สร้างการ์ดสคริปต์ 5 เวอร์ชัน (รองรับทั้งรูปแบบใหม่ scripts และเก่า script)
+    scripts = data.get("scripts")
+    if scripts:
+        script_cards = ""
+        for i, s in enumerate(scripts, 1):
+            body = "".join(f"<p>{p}</p>" for p in s.get("content", "").split("\n") if p.strip())
+            hook = s.get("hook", "")
+            hook_html = f'<p class="script-hook">🪝 Hook: {hook}</p>' if hook else ""
+            script_cards += f'''
+            <div class="script-version avoid-break">
+              <div class="script-badge">เวอร์ชันที่ {i}: {s.get("style","")}</div>
+              {hook_html}
+              {body}
+            </div>'''
+        script_html = script_cards
+    else:
+        # เผื่อกรณี AI ตอบแบบเก่า (script เดี่ยว)
+        script_html = "".join(f"<p>{p}</p>" for p in data.get("script", "").split("\n") if p.strip())
 
     shots_html = ""
     for s in data.get("shots", []):
@@ -260,6 +278,16 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
   a {{ color: #E8714F; word-break: break-all; }}
   .note {{ font-size: 13px; color: #8A6A60; font-style: italic; margin-bottom: 8px; }}
   .avoid-break {{ page-break-inside: avoid; break-inside: avoid; }}
+  .script-version {{
+    background: white; border: 1px solid #F1D9D1; border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 14px;
+  }}
+  .script-badge {{
+    display: inline-block; background: #FBE3DA; color: #C4502F;
+    font-weight: bold; padding: 4px 14px; border-radius: 20px;
+    margin-bottom: 10px; font-size: 15px;
+  }}
+  .script-hook {{ color: #C4502F; font-weight: bold; margin-bottom: 8px; }}
   .script-box {{
     background: white; border: 2px dashed #E8A48D; border-radius: 10px;
     padding: 16px 20px;
@@ -334,9 +362,9 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
   <h1>ใบงานผลิตคอนเทนต์ TikTok (หน้า 2/3)</h1>
   <p>สคริปต์บทพูดพนักงาน (TikTok Safe Script)</p>
 </div>
-<h2 class="section">2. สคริปต์วิดีโอสำหรับพนักงาน (TikTok Safe Script)</h2>
-<p class="note">*หมายเหตุ: สคริปต์นี้หลีกเลี่ยงคำต้องห้ามของ TikTok เรียบร้อยแล้ว*</p>
-<div class="script-box avoid-break">{script_html}</div>
+<h2 class="section">2. สคริปต์วิดีโอสำหรับพนักงาน — 5 สไตล์ให้เลือก (TikTok Safe Script)</h2>
+<p class="note">*หมายเหตุ: เลือกสไตล์ที่เหมาะกับสินค้าและตัวผู้ถ่าย ทุกเวอร์ชันหลีกเลี่ยงคำต้องห้ามของ TikTok แล้ว*</p>
+{script_html}
 
 <!-- ==================== หน้า 3: สตอรี่บอร์ด ==================== -->
 <div class="force-new-page"></div>
@@ -366,7 +394,16 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
         st.warning("⚠️ กรุณาใส่ข้อมูลให้ครบทั้ง รายละเอียดสินค้า และ รูปภาพ ครับ")
     else:
         try:
-            client = genai.Client(api_key=api_key.strip())
+            # ตรวจสอบ key: ต้องเป็น ASCII (a-z, 0-9, สัญลักษณ์) เท่านั้น
+            # ถ้ามีอักขระไทยหรือช่องว่างแปลกปลอมติดมาตอนวางใน Secrets จะ error
+            clean_key = api_key.strip()
+            try:
+                clean_key.encode("ascii")
+            except UnicodeEncodeError:
+                st.error("❌ API Key มีอักขระที่ไม่ถูกต้อง (อาจมีภาษาไทยหรือช่องว่างพิเศษติดมา) "
+                         "กรุณาตรวจสอบค่า GEMINI_API_KEY ใน Settings ของแอป")
+                st.stop()
+            client = genai.Client(api_key=clean_key)
             img = Image.open(uploaded_image)
             if img.mode != "RGB":
                 img = img.convert("RGB")
@@ -379,7 +416,13 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                 {
                   "product_name": "ชื่อสินค้า (ไทย + อังกฤษถ้ามี) พร้อมขนาด",
                   "features": ["จุดเด่นข้อ 1", "จุดเด่นข้อ 2", "... 4-5 ข้อ"],
-                  "script": "สคริปต์วิดีโอฉบับเต็ม แบ่งย่อหน้าด้วยการขึ้นบรรทัดใหม่ (Hook - เนื้อหา - CTA)",
+                  "scripts": [
+                    {"style": "สายฮา สนุกสนาน", "hook": "ประโยคเปิดสั้นๆ", "content": "สคริปต์ฉบับเต็ม แบ่งย่อหน้าด้วย \\n (Hook-เนื้อหา-CTA)"},
+                    {"style": "สายให้ความรู้", "hook": "...", "content": "..."},
+                    {"style": "สายรีวิวจริงใจ", "hook": "...", "content": "..."},
+                    {"style": "สายเล่าปัญหา (Storytelling)", "hook": "...", "content": "..."},
+                    {"style": "สายกระตุ้นให้รีบซื้อ (Urgency)", "hook": "...", "content": "..."}
+                  ],
                   "shots": [
                     {"no": 1, "title": "ชื่อช็อต", "time": "0.00 - 0.05 วินาที",
                      "camera": "มุมกล้อง/ขนาดภาพ", "action": "ท่าทางพนักงานและสิ่งที่เกิดขึ้น",
@@ -387,7 +430,8 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                      "image_prompt": "English prompt describing this exact shot for an illustration"}
                   ]
                 }
-                ให้มี shots ทั้งหมด 5 ช็อต เวลารวมประมาณ 45 วินาที
+                ให้มี scripts ทั้งหมด 5 เวอร์ชันตามสไตล์ที่ระบุ (แต่ละเวอร์ชันเนื้อหาต่างกันจริงๆ ไม่ใช่แค่เปลี่ยนคำ)
+                และ shots ทั้งหมด 5 ช็อต เวลารวมประมาณ 45 วินาที (สตอรี่บอร์ดอ้างอิงจากสคริปต์เวอร์ชันแรก)
                 ทุกข้อความเป็นภาษาไทย (ยกเว้น image_prompt เป็นอังกฤษ)
                 ห้ามใช้คำว่า ดีที่สุด, 100%, ขาวทันที, หายขาด ให้ใช้คำเลี่ยงที่ปลอดภัยตามกฎโฆษณา
                 """
