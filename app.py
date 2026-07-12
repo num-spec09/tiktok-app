@@ -80,7 +80,9 @@ st.markdown("""
 <style>
 /* พื้นหลังแอปเป็นสีดำแบบ TikTok */
 .stApp { background: #0a0a0a; }
-[data-testid="stMainBlockContainer"] { max-width: 1100px; padding-top: 1rem; }
+[data-testid="stMainBlockContainer"] { max-width: 1100px; padding-top: 3.5rem; }
+/* ให้แถบเครื่องมือด้านบนของ Streamlit โปร่งใสเข้าธีมดำ ไม่บังหัว */
+[data-testid="stHeader"] { background: transparent !important; }
 /* ข้อความทั่วไปเป็นสีขาว */
 .stApp, .stApp p, .stApp label, .stApp span, .stApp div { color: #e8e8e8; }
 /* หัวข้อ label ของช่องกรอก */
@@ -107,7 +109,7 @@ st.markdown("""
 /* การ์ดหัวและสถิติ */
 .tt-header {
     background: linear-gradient(0deg,#0a0a0a,#0a0a0a); padding: 20px 26px; border-radius: 14px;
-    border: 0.5px solid #1f1f1f; display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+    border: 0.5px solid #1f1f1f; display: flex; align-items: center; gap: 14px; margin: 8px 0 18px;
 }
 .tt-logo { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
 .tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 11px; }
