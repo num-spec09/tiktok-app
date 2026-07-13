@@ -361,6 +361,50 @@ def check_banned_words(data: dict) -> list:
     return found
 
 
+# ===== แปลศัพท์มุมกล้องภาษาอังกฤษเป็นไทย (เผื่อ AI หลุดมา) =====
+CAMERA_TERMS = [
+    ("Extreme Close-up", "ถ่ายซูมใกล้มาก เห็นรายละเอียด"),
+    ("Extreme Close Up", "ถ่ายซูมใกล้มาก เห็นรายละเอียด"),
+    ("Medium Close-up", "ถ่ายใกล้ครึ่งอก"),
+    ("Medium Close Up", "ถ่ายใกล้ครึ่งอก"),
+    ("Close-up", "ถ่ายใกล้ เน้นใบหน้า/จุดเด่น"),
+    ("Close Up", "ถ่ายใกล้ เน้นใบหน้า/จุดเด่น"),
+    ("Medium Shot", "ถ่ายครึ่งตัว"),
+    ("Full Shot", "ถ่ายเห็นทั้งตัว"),
+    ("Wide Shot", "ถ่ายมุมกว้าง เห็นฉากรอบ"),
+    ("Long Shot", "ถ่ายระยะไกล เห็นทั้งตัวและฉาก"),
+    ("Over the Shoulder", "ถ่ายข้ามไหล่"),
+    ("Point of View", "ถ่ายมุมมองบุคคลที่หนึ่ง"),
+    ("Top View", "ถ่ายมุมสูง มองจากด้านบน"),
+    ("Top-down", "ถ่ายมุมสูง มองจากด้านบน"),
+    ("Low Angle", "ถ่ายมุมต่ำ เงยขึ้น"),
+    ("High Angle", "ถ่ายมุมสูง ก้มลง"),
+    ("ECU", "ถ่ายซูมใกล้มาก"),
+    ("MCU", "ถ่ายใกล้ครึ่งอก"),
+    ("MS", "ถ่ายครึ่งตัว"),
+    ("CU", "ถ่ายใกล้ เน้นใบหน้า"),
+    ("POV", "ถ่ายมุมมองบุคคลที่หนึ่ง"),
+    ("9:16", "แนวตั้ง 9:16"),
+]
+
+
+def th_camera(text: str) -> str:
+    """แปลศัพท์กล้องภาษาอังกฤษในข้อความเป็นไทย"""
+    if not text:
+        return text
+    import re as _re
+    out = text
+    for en, th in CAMERA_TERMS:
+        out = _re.sub(_re.escape(en), th, out, flags=_re.IGNORECASE)
+    # เก็บกวาด: ลบวงเล็บที่เนื้อในซ้ำกับข้อความข้างหน้า เช่น "ถ่ายครึ่งตัว (ถ่ายครึ่งตัว)"
+    out = _re.sub(r'(\S+)\s*\(\1\)', r'\1', out)
+    # ลบคำไทยที่ติดกันซ้ำ เช่น "แนวตั้ง แนวตั้ง"
+    out = _re.sub(r'(ถ่าย\S+|แนวตั้ง)\s+\1', r'\1', out)
+    # ยุบช่องว่างซ้อน
+    out = _re.sub(r'\s{2,}', ' ', out).strip()
+    return out
+
+
 def render_shots(shots, shot_imgs, product_uri, show_images):
     """สร้าง HTML การ์ดสตอรี่บอร์ด; show_images=True จะแสดงภาพประกอบ"""
     html = ""
@@ -373,7 +417,7 @@ def render_shots(shots, shot_imgs, product_uri, show_images):
             body = f'''<div class="shot-body">
             <div class="shot-text">
               <p><b>บทพูด:</b> "{s.get('dialogue','-')}"</p>
-              <p><b>มุมกล้อง:</b> {s.get('camera','-')}</p>
+              <p><b>มุมกล้อง:</b> {th_camera(s.get('camera','-'))}</p>
               <p><b>Action พนักงาน:</b> {s.get('action','-')}</p>
             </div>
             <div class="shot-img"><img src="{img_uri}" alt="shot">
@@ -384,7 +428,7 @@ def render_shots(shots, shot_imgs, product_uri, show_images):
             body = f'''<div class="shot-body">
             <div class="shot-text" style="width:100%">
               <p><b>บทพูด:</b> "{s.get('dialogue','-')}"</p>
-              <p><b>มุมกล้อง:</b> {s.get('camera','-')}</p>
+              <p><b>มุมกล้อง:</b> {th_camera(s.get('camera','-'))}</p>
               <p><b>Action พนักงาน:</b> {s.get('action','-')}</p>
             </div>
           </div>'''
@@ -745,7 +789,7 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                     '     "content": "สคริปต์ฉบับเต็ม แบ่งย่อหน้าด้วยการขึ้นบรรทัดใหม่ (Hook-เนื้อหา-CTA)",\n'
                     '     "closings": ["ประโยคปิดการขายสำหรับคลิป 2-3 ประโยค ติดหู กระตุ้นให้กดซื้อ"],\n'
                     '     "shots": [{"no": 1, "title": "ชื่อช็อต", "time": "0.00 - 0.05 วินาที",\n'
-                    '       "camera": "มุมกล้อง", "action": "ท่าทางพนักงาน",\n'
+                    '       "camera": "มุมกล้องเป็นภาษาไทยที่คนทั่วไปเข้าใจ เช่น ถ่ายครึ่งตัว/ถ่ายใกล้เน้นใบหน้า/ถ่ายเห็นทั้งตัว/ถ่ายซูมใกล้มากเห็นรายละเอียด", "action": "ท่าทางพนักงาน",\n'
                     '       "dialogue": "บทพูด", "image_prompt": "English prompt"}]},\n'
                     '    {อีก 4 สไตล์โครงเดียวกัน (มี closings + shots): สายให้ความรู้ / สายรีวิวจริงใจ / สายเล่าปัญหา Storytelling / สายกระตุ้นให้รีบซื้อ Urgency}\n'
                     '  ],\n'
@@ -771,6 +815,7 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                 if want_live:
                     rules.append("- live_scripts ครบ 3 สไตล์ แต่ละสไตล์มี segments 4-5 ช่วง (เปิดไลฟ์/แนะนำ/สาธิต/ตอบคำถาม/ปิดการขาย) และ closings (ปิดการขาย 2-3 ประโยค)")
                 rules.append("ทุกข้อความเป็นภาษาไทย (ยกเว้น image_prompt เป็นอังกฤษ)")
+                rules.append("- ช่อง camera (มุมกล้อง) ห้ามใช้ศัพท์กล้องภาษาอังกฤษ เช่น Medium Shot, Close-up, MCU ให้เขียนเป็นภาษาไทยที่พนักงานถ่ายเข้าใจทันที เช่น ถ่ายครึ่งตัว, ถ่ายใกล้เน้นหน้า, ถ่ายซูมใกล้มาก")
                 rules.append("ห้ามใช้คำต้องห้ามโฆษณา เช่น ดีที่สุด, 100%, ขาวทันที, หายขาด, รักษา, การันตี และคำเฉพาะหมวดใน avoid_words ให้ใช้คำเลี่ยงที่ปลอดภัยเสมอ")
 
                 main_prompt = (p_head
