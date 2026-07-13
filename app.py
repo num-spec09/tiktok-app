@@ -18,6 +18,7 @@
 import base64
 import json
 import re
+import time
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -222,20 +223,28 @@ IMAGE_MODELS = [
 ]
 
 
-def call_with_fallback(client, models, contents):
+def call_with_fallback(client, models, contents, max_retries=3):
     last_error = None
     for name in models:
-        try:
-            return client.models.generate_content(model=name, contents=contents), name
-        except Exception as e:
-            last_error = e
-            msg = str(e).lower()
-            # 404 = ไม่มีโมเดลนี้ / 429+limit 0 หรือ free_tier = บัญชีนี้ใช้โมเดลนี้ไม่ได้
-            if ("404" in msg or "not_found" in msg or "not found" in msg
-                    or ("429" in msg and ("limit: 0" in msg or "free_tier" in msg))):
-                continue
-            raise
-    raise Exception(f"ลองทุกโมเดลแล้วไม่มีตัวไหนใช้ได้: {last_error}")
+        for attempt in range(max_retries):
+            try:
+                return client.models.generate_content(model=name, contents=contents), name
+            except Exception as e:
+                last_error = e
+                msg = str(e).lower()
+                # 503/overloaded/unavailable = เซิร์ฟเวอร์ Google คนใช้เยอะ -> รอแล้วลองใหม่
+                if ("503" in msg or "unavailable" in msg or "overloaded" in msg
+                        or "high demand" in msg or "500" in msg):
+                    if attempt < max_retries - 1:
+                        time.sleep(2 * (attempt + 1))  # รอ 2, 4 วินาที แล้วลองใหม่
+                        continue
+                    break  # ลองครบแล้วยังไม่ได้ -> ไปโมเดลถัดไป
+                # 404/บัญชีใช้ไม่ได้ -> ข้ามไปโมเดลถัดไปทันที
+                if ("404" in msg or "not_found" in msg or "not found" in msg
+                        or ("429" in msg and ("limit: 0" in msg or "free_tier" in msg))):
+                    break
+                raise
+    raise Exception(f"เซิร์ฟเวอร์ไม่ว่างหรือใช้โมเดลไม่ได้: {last_error}")
 
 
 def extract_image(resp):
@@ -848,4 +857,3 @@ if st.session_state.worksheet_html:
                     + " The product must look like the attached product photo. "
                     "No text or words in the image.",
                     language=None)
-
