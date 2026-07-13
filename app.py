@@ -178,6 +178,13 @@ if use_dalle and not openai_key:
                                        help="ขอที่ platform.openai.com/api-keys (ต้องเติมเงินก่อนใช้)")
     st.sidebar.caption("⚠️ DALL-E วาดจากข้อความเท่านั้น หลอดครีมในภาพอาจไม่ตรงรุ่นสินค้าจริง")
 
+# ===== เลือกประเภทคอนเทนต์ =====
+mode = st.radio("📌 เลือกประเภทคอนเทนต์ที่ต้องการ",
+                ["🎬 คลิปสั้น", "🔴 ไลฟ์สด", "✨ ทั้งคู่"],
+                horizontal=True, index=0)
+want_clip = (mode != "🔴 ไลฟ์สด")
+want_live = (mode != "🎬 คลิปสั้น")
+
 col1, col2 = st.columns(2)
 with col1:
     product_info = st.text_area("🔗 1. วางลิงก์ หรือ พิมพ์รายละเอียดสินค้า", height=150)
@@ -277,6 +284,64 @@ def draw_with_dalle(oa_client, image_prompt: str) -> str:
     return f"data:image/png;base64,{b64}"
 
 
+# ===== ฐานข้อมูลคำต้องห้ามในโฆษณา TikTok/อย. + คำทดแทนที่ปลอดภัย =====
+BANNED_WORDS = {
+    "ดีที่สุด": "ดีมาก / โดดเด่น",
+    "ที่สุดในโลก": "ระดับท็อป",
+    "อันดับ 1": "ยอดนิยม",
+    "100%": "อย่างเต็มที่",
+    "หายขาด": "ช่วยดูแลให้ดีขึ้น",
+    "รักษา": "ช่วยดูแล / บรรเทา",
+    "ขาวทันที": "ผิวดูกระจ่างใสขึ้น",
+    "ขาวขึ้นทันที": "ผิวดูกระจ่างใสขึ้น",
+    "เห็นผลทันที": "เห็นความเปลี่ยนแปลงได้ไว",
+    "เห็นผล 100": "ผู้ใช้ส่วนใหญ่พึงพอใจ",
+    "ปลอดภัย 100": "ผ่านการทดสอบแล้ว",
+    "ไม่มีผลข้างเคียง": "อ่อนโยน",
+    "การันตี": "มั่นใจได้",
+    "รับประกันผล": "ผู้ใช้จำนวนมากพึงพอใจ",
+    "ถูกที่สุด": "คุ้มค่ามาก",
+    "ลดน้ำหนัก": "ดูแลรูปร่าง",
+    "ผอมเร็ว": "ดูแลรูปร่าง",
+    "หน้าเด็ก": "ผิวดูอ่อนเยาว์",
+    "เด้งทันที": "ดูเรียบเนียนขึ้น",
+    "หายเลย": "ดีขึ้น",
+}
+
+
+def check_banned_words(data: dict) -> list:
+    """สแกนทุกข้อความในผลลัพธ์ หาคำต้องห้าม คืนรายการ [{word, suggest, where}]"""
+    found, seen = [], set()
+
+    def scan(text, where):
+        for w, rep in BANNED_WORDS.items():
+            if w in (text or "") and (w, where) not in seen:
+                seen.add((w, where))
+                found.append({"word": w, "suggest": rep, "where": where})
+
+    for i, s in enumerate(data.get("scripts", []) or []):
+        if not isinstance(s, dict):
+            continue
+        label = chr(65 + i)  # A B C ...
+        scan(s.get("hook", ""), f"สคริปต์ {label}")
+        scan(s.get("content", ""), f"สคริปต์ {label}")
+        for sh in s.get("shots", []) or []:
+            if isinstance(sh, dict):
+                scan(sh.get("dialogue", ""), f"สตอรี่บอร์ด {label}")
+    for i, lv in enumerate(data.get("live_scripts", []) or []):
+        if not isinstance(lv, dict):
+            continue
+        for seg in lv.get("segments", []) or []:
+            if isinstance(seg, dict):
+                scan(seg.get("talk", ""), f"ไลฟ์สไตล์ {i+1}")
+                scan(seg.get("example", ""), f"ไลฟ์สไตล์ {i+1}")
+    for c in data.get("closing_lines", []) or []:
+        if isinstance(c, dict):
+            scan(c.get("clip", ""), "ประโยคปิดการขาย")
+            scan(c.get("live", ""), "ประโยคปิดการขาย")
+    return found
+
+
 def render_shots(shots, shot_imgs, product_uri, show_images):
     """สร้าง HTML การ์ดสตอรี่บอร์ด; show_images=True จะแสดงภาพประกอบ"""
     html = ""
@@ -343,10 +408,95 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
             </div>'''
         script_html = blocks
     else:
-        # เผื่อกรณี AI ตอบแบบเก่า
         script_html = "".join(f"<p>{p}</p>" for p in data.get("script", "").split("\n") if p.strip())
         shots_html = render_shots([x for x in data.get("shots", []) if isinstance(x, dict)],
                                    shot_imgs, product_uri, show_images=True)
+
+    # ===== ส่วนสคริปต์ไลฟ์สด (ถ้ามี) =====
+    live_html = ""
+    live_scripts = data.get("live_scripts") or []
+    if live_scripts:
+        lblocks = ""
+        for i, lv in enumerate(live_scripts, 1):
+            if not isinstance(lv, dict):
+                continue
+            seg_html = ""
+            for seg in lv.get("segments", []) or []:
+                if not isinstance(seg, dict):
+                    continue
+                seg_html += f'''
+                <div class="live-seg">
+                  <div class="live-seg-head">{seg.get("name","")} <span class="live-time">{seg.get("time","")}</span></div>
+                  <p><b>แนวทางพูด:</b> {seg.get("talk","-")}</p>
+                  <p class="live-ex"><b>ตัวอย่างประโยค:</b> {seg.get("example","-")}</p>
+                  <p class="live-eng"><b>💬 ดึงมีส่วนร่วม:</b> {seg.get("engagement","-")}</p>
+                </div>'''
+            lblocks += f'''
+            <div class="script-block">
+              <div class="live-badge">🔴 ไลฟ์สไตล์ {i}: {lv.get("style","")}</div>
+              {seg_html}
+            </div>'''
+        live_html = f'''
+        <div class="force-new-page"></div>
+        <h2 class="section">3. สคริปต์ไลฟ์สด — 3 สไตล์ให้เลือก</h2>
+        <p class="note">*เลือกสไตล์ที่เข้ากับคนไลฟ์ ตัวเลขเวลาเป็นแนวทาง ปรับตามหน้างานได้*</p>
+        {lblocks}'''
+
+    # ===== ส่วนประโยคปิดการขาย (ถ้ามี) =====
+    closing_html = ""
+    closing = data.get("closing_lines") or []
+    if closing:
+        rows = ""
+        for c in closing:
+            if not isinstance(c, dict):
+                continue
+            rows += f'''<tr>
+              <td class="cl-type">{c.get("type","")}</td>
+              <td>{c.get("clip","-")}</td>
+              <td>{c.get("live","-")}</td>
+            </tr>'''
+        closing_html = f'''
+        <div class="force-new-page"></div>
+        <h2 class="section">💰 ประโยคปิดการขาย (Call to Action)</h2>
+        <p class="note">*เลือกใช้ตามสถานการณ์ คอลัมน์ซ้ายสำหรับคลิปสั้น ขวาสำหรับไลฟ์สด*</p>
+        <table class="closing-table">
+          <tr><th>ประเภท</th><th>สำหรับคลิปสั้น</th><th>สำหรับไลฟ์สด</th></tr>
+          {rows}
+        </table>'''
+
+    # ===== ส่วนตรวจคำต้องห้าม =====
+    banned_html = ""
+    banned_found = check_banned_words(data)
+    if banned_found:
+        rows = ""
+        for b in banned_found:
+            rows += f'''<tr>
+              <td class="bad-word">{b["word"]}</td>
+              <td class="good-word">{b["suggest"]}</td>
+              <td>{b["where"]}</td>
+            </tr>'''
+        banned_html = f'''
+        <div class="banned-box">
+          <div class="banned-title">⚠️ ตรวจพบคำที่ควรเลี่ยง {len(banned_found)} จุด</div>
+          <p class="note">ระบบพบคำที่อาจผิดกฎโฆษณา แนะนำแก้เป็นคำในคอลัมน์ขวาก่อนใช้จริง</p>
+          <table class="banned-table">
+            <tr><th>คำที่พบ</th><th>แนะนำเปลี่ยนเป็น</th><th>อยู่ตรงไหน</th></tr>
+            {rows}
+          </table>
+        </div>'''
+    else:
+        banned_html = '''<div class="banned-box ok">
+          <div class="banned-title" style="color:#0F6E56">✅ ไม่พบคำต้องห้าม</div>
+          <p class="note">ระบบตรวจแล้วไม่พบคำที่ผิดกฎโฆษณา แต่แนะนำให้คนตรวจอีกครั้งก่อนถ่ายจริง</p>
+        </div>'''
+
+    clip_heading = ""
+    if data.get("scripts"):
+        clip_heading = (
+            '<h2 class="section">2. สคริปต์ + สตอรี่บอร์ด — เลือกสไตล์ A ถึง E (TikTok Safe Script)</h2>'
+            '<p class="note">*วิธีใช้: พนักงานเลือกสคริปต์ที่ชอบ (บอกหัวหน้าได้เลยว่าเอา A/B/C/D/E) '
+            'แล้วถ่ายตามสตอรี่บอร์ดของสคริปต์นั้น*</p>'
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="th">
@@ -425,6 +575,23 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
   }}
   .img-cap {{ font-size: 12px; color: #8A6A60; margin-top: 4px; }}
   .page-break {{ page-break-before: always; }}
+  .live-badge {{ display:inline-block; background:#0a0a0a; color:#00F2EA;
+    font-weight:bold; padding:6px 16px; border-radius:8px; margin-bottom:10px; font-size:16px; }}
+  .live-seg {{ background:white; border:1px solid #F1D9D1; border-left:4px solid #00c4bd;
+    border-radius:6px; padding:10px 14px; margin-bottom:10px; }}
+  .live-seg-head {{ font-weight:bold; color:#0a7a75; margin-bottom:6px; }}
+  .live-time {{ color:#888; font-size:13px; font-weight:normal; }}
+  .live-ex {{ background:#f0fbfa; border-radius:4px; padding:6px 10px; }}
+  .live-eng {{ color:#C4502F; }}
+  .closing-table, .banned-table {{ width:100%; border-collapse:collapse; background:white; }}
+  .closing-table th, .banned-table th {{ background:#FBE3DA; color:#C4502F; padding:8px 12px; text-align:left; font-size:14px; }}
+  .closing-table td, .banned-table td {{ border:1px solid #F1D9D1; padding:8px 12px; vertical-align:top; }}
+  .cl-type {{ background:#FDF6F3; font-weight:bold; width:150px; }}
+  .banned-box {{ background:#FCEBEB; border:1px solid #F09595; border-radius:10px; padding:14px 18px; margin-top:16px; }}
+  .banned-box.ok {{ background:#E1F5EE; border-color:#5DCAA5; }}
+  .banned-title {{ font-weight:bold; color:#A32D2D; font-size:16px; margin-bottom:4px; }}
+  .bad-word {{ color:#A32D2D; font-weight:bold; text-decoration:line-through; }}
+  .good-word {{ color:#0F6E56; font-weight:bold; }}
   .toolbar {{ text-align: center; margin: 20px 0; }}
   .print-btn {{
     background: #E8714F; color: white; border: none; border-radius: 8px;
@@ -473,10 +640,11 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
       <td><div class="product-hero"><img src="{product_uri}" alt="product"></div></td></tr>
 </table>
 
-<!-- ==================== สคริปต์ + สตอรี่บอร์ด ==================== -->
-<h2 class="section">2. สคริปต์ + สตอรี่บอร์ด — เลือกสไตล์ A ถึง E (TikTok Safe Script)</h2>
-<p class="note">*วิธีใช้: พนักงานเลือกสคริปต์ที่ชอบ (บอกหัวหน้าได้เลยว่าเอา A/B/C/D/E) แล้วถ่ายตามสตอรี่บอร์ดของสคริปต์นั้น ทุกสไตล์หลีกเลี่ยงคำต้องห้ามของ TikTok แล้ว*</p>
+{clip_heading}
 {script_html}
+{live_html}
+{closing_html}
+{banned_html}
 
 <div class="toolbar">
   <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นใบงาน (Print)</button>
@@ -512,31 +680,54 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
 
             # ---------- ขั้น 1: ให้ AI วิเคราะห์และวางโครงใบงานทั้งหมดเป็น JSON ----------
             with st.spinner("📝 (1/2) กำลังวิเคราะห์สินค้าและเขียนสคริปต์..."):
-                main_prompt = """
-                คุณคือผู้เชี่ยวชาญด้าน E-commerce และ TikTok
-                วิเคราะห์ข้อมูลสินค้า+รูปภาพที่แนบมา แล้วตอบกลับเป็น JSON เท่านั้น ห้ามมีข้อความอื่น รูปแบบ:
-                {
-                  "product_name": "ชื่อสินค้า (ไทย + อังกฤษถ้ามี) พร้อมขนาด",
-                  "features": ["จุดเด่นข้อ 1", "จุดเด่นข้อ 2", "... 4-5 ข้อ"],
-                  "scripts": [
-                    {"style": "สายฮา สนุกสนาน", "hook": "ประโยคเปิดสั้นๆ", "content": "สคริปต์ฉบับเต็ม แบ่งย่อหน้าด้วย \\n (Hook-เนื้อหา-CTA)"},
-                    {"style": "สายให้ความรู้", "hook": "...", "content": "..."},
-                    {"style": "สายรีวิวจริงใจ", "hook": "...", "content": "..."},
-                    {"style": "สายเล่าปัญหา (Storytelling)", "hook": "...", "content": "..."},
-                    {"style": "สายกระตุ้นให้รีบซื้อ (Urgency)", "hook": "...", "content": "..."}
-                  ],
-                  "shots": [
-                    {"no": 1, "title": "ชื่อช็อต", "time": "0.00 - 0.05 วินาที",
-                     "camera": "มุมกล้อง/ขนาดภาพ", "action": "ท่าทางพนักงานและสิ่งที่เกิดขึ้น",
-                     "dialogue": "บทพูดช็อตนี้",
-                     "image_prompt": "English prompt describing this exact shot for an illustration"}
-                  ]
-                }
-                ให้มี scripts ทั้งหมด 5 เวอร์ชันตามสไตล์ที่ระบุ แต่ละเวอร์ชันเนื้อหาต่างกันจริงๆ
-                และแต่ละเวอร์ชันมี shots (สตอรี่บอร์ด) 5 ช็อตของตัวเอง ที่สอดคล้องกับสคริปต์เวอร์ชันนั้น เวลารวมประมาณ 45 วินาที
-                ทุกข้อความเป็นภาษาไทย (ยกเว้น image_prompt เป็นอังกฤษ)
-                ห้ามใช้คำว่า ดีที่สุด, 100%, ขาวทันที, หายขาด ให้ใช้คำเลี่ยงที่ปลอดภัยตามกฎโฆษณา
-                """
+                # ประกอบ prompt ตามโหมดที่เลือก (คลิป/ไลฟ์/ทั้งคู่)
+                p_head = (
+                    "คุณคือผู้เชี่ยวชาญด้าน E-commerce, TikTok และการไลฟ์ขายของ\n"
+                    "วิเคราะห์ข้อมูลสินค้า+รูปภาพที่แนบมา แล้วตอบกลับเป็น JSON เท่านั้น "
+                    "ห้ามมีข้อความอื่น รูปแบบ:\n{\n"
+                    '  "product_name": "ชื่อสินค้า (ไทย + อังกฤษถ้ามี) พร้อมขนาด",\n'
+                    '  "features": ["จุดเด่น 4-5 ข้อ"],\n'
+                )
+                p_clip = (
+                    '  "scripts": [\n'
+                    '    {"style": "สายฮา สนุกสนาน", "hook": "ประโยคเปิดสั้นๆ",\n'
+                    '     "content": "สคริปต์ฉบับเต็ม แบ่งย่อหน้าด้วยการขึ้นบรรทัดใหม่ (Hook-เนื้อหา-CTA)",\n'
+                    '     "shots": [{"no": 1, "title": "ชื่อช็อต", "time": "0.00 - 0.05 วินาที",\n'
+                    '       "camera": "มุมกล้อง", "action": "ท่าทางพนักงาน",\n'
+                    '       "dialogue": "บทพูด", "image_prompt": "English prompt"}]},\n'
+                    '    {อีก 4 สไตล์โครงเดียวกัน: สายให้ความรู้ / สายรีวิวจริงใจ / สายเล่าปัญหา Storytelling / สายกระตุ้นให้รีบซื้อ Urgency}\n'
+                    '  ],\n'
+                )
+                p_live = (
+                    '  "live_scripts": [\n'
+                    '    {"style": "สายขายตรง จัดโปรแรง",\n'
+                    '     "segments": [{"name": "เปิดไลฟ์ดึงคนเข้า", "time": "นาทีที่ 0-5",\n'
+                    '       "talk": "แนวทางการพูดช่วงนี้",\n'
+                    '       "example": "ตัวอย่างประโยคพูดจริง 2-3 ประโยค",\n'
+                    '       "engagement": "เทคนิคดึงคนดูมีส่วนร่วม"}]},\n'
+                    '    {อีก 2 สไตล์โครงเดียวกัน: สายเอนเตอร์เทน คุยสนุก / สายให้ความรู้ สาธิตละเอียด}\n'
+                    '  ],\n'
+                )
+                p_close = (
+                    '  "closing_lines": [\n'
+                    '    {"type": "Urgency เร่งตัดสินใจ", "clip": "ประโยคปิดการขายสำหรับคลิปสั้น", "live": "ประโยคสำหรับไลฟ์สด"},\n'
+                    '    {อีก 3 ประเภทโครงเดียวกัน: อารมณ์และความรู้สึก / โปรโมชั่นและส่วนลด / ชวนมีส่วนร่วม}\n'
+                    '  ]\n}\n'
+                )
+                rules = []
+                if want_clip:
+                    rules.append("- scripts ครบ 5 เวอร์ชัน เนื้อหาต่างกันจริง แต่ละเวอร์ชันมี shots 5 ช็อตของตัวเอง เวลารวม ~45 วินาที")
+                if want_live:
+                    rules.append("- live_scripts ครบ 3 สไตล์ แต่ละสไตล์มี segments 4-5 ช่วง ครอบคลุมไลฟ์ 30-60 นาที (เปิดไลฟ์/แนะนำ/สาธิต/ตอบคำถาม/ปิดการขาย)")
+                rules.append("- closing_lines ครบ 4 ประเภท ประโยคติดหู จำง่าย ใช้ได้จริง")
+                rules.append("ทุกข้อความเป็นภาษาไทย (ยกเว้น image_prompt เป็นอังกฤษ)")
+                rules.append("ห้ามใช้คำต้องห้ามโฆษณา เช่น ดีที่สุด, 100%, ขาวทันที, หายขาด, รักษา, การันตี ให้ใช้คำเลี่ยงที่ปลอดภัยเสมอ")
+
+                main_prompt = (p_head
+                               + (p_clip if want_clip else "")
+                               + (p_live if want_live else "")
+                               + p_close
+                               + "\n".join(rules))
                 resp1, used_model = call_with_fallback(
                     client, TEXT_MODELS, [main_prompt, product_info, img])
                 raw = re.sub(r"^```(json)?|```$", "", resp1.text.strip(),
@@ -657,3 +848,4 @@ if st.session_state.worksheet_html:
                     + " The product must look like the attached product photo. "
                     "No text or words in the image.",
                     language=None)
+
