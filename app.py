@@ -145,29 +145,43 @@ html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
 [data-testid="stSidebar"] * { color: #ddd !important; }
 /* ===== หัวแอป + แถบเส้นไล่สีบนสุด ===== */
 .tt-header {
-    position: relative; background: #111; padding: 30px 24px; border-radius: 16px;
+    position: relative; background: #111; padding: 18px 24px; border-radius: 16px;
     border: 1px solid #1f1f1f; display: flex; flex-direction: column; align-items: center;
-    text-align: center; margin: 4px 0 16px; overflow: hidden;
+    text-align: center; margin: 4px 0 14px; overflow: hidden;
 }
 .tt-header::before {
     content:''; position:absolute; top:0; left:0; right:0; height:4px;
     background: linear-gradient(90deg,#00F2EA,#FE2C55);
 }
-.tt-logo { position: relative; width: 54px; height: 54px; margin-bottom: 12px; }
-.tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 15px; }
+.tt-logo { position: relative; width: 46px; height: 46px; margin-bottom: 8px; }
+.tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 13px; }
 .tt-logo .l1 { background:#FE2C55; transform: translate(2px,2px); }
 .tt-logo .l2 { background:#00F2EA; transform: translate(-2px,-2px); }
-.tt-logo .l3 { background:#111; display:flex; align-items:center; justify-content:center; font-size:26px; }
-.tt-title { font-size: 26px; font-weight: 700; color: #fff; letter-spacing:-0.5px; line-height:1.2; }
-.tt-sub { font-size: 14px; color: #9a9a9a; margin-top:4px; }
+.tt-logo .l3 { background:#111; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.tt-title { font-size: 23px; font-weight: 700; color: #fff; letter-spacing:-0.5px; line-height:1.2; }
+.tt-sub { font-size: 13px; color: #9a9a9a; margin-top:2px; }
 /* กล่องสถิติ: ห่อด้วย wrapper ให้จัดกึ่งกลางจอจริง (ไม่เยื้องขวา) */
-.tt-stats-wrap { display:flex; justify-content:center; margin: 0 0 16px; width:100%; }
+.tt-stats-wrap { display:flex; justify-content:center; margin: 0 0 14px; width:100%; }
 .tt-stats { display:flex; gap:0;
-    background:#111; border:1px solid #1f1f1f; border-radius:14px; padding:16px 32px; }
-.tt-stat { text-align:center; padding:0 20px; }
-.tt-stat .n { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+    background:#111; border:1px solid #1f1f1f; border-radius:14px; padding:12px 28px; }
+.tt-stat { text-align:center; padding:0 18px; }
+.tt-stat .n { font-size:20px; font-weight:700; letter-spacing:-0.5px; }
 .tt-stat .l { font-size:11px; color:#888; margin-top:2px; }
 .tt-divider { width:1px; background:#222; }
+/* ===== พื้นที่ผลลัพธ์ + ขั้นตอนการใช้งาน (เติมช่องว่างก่อนกดสร้าง) ===== */
+.tt-placeholder {
+    background:#111; border:1.5px dashed #2a2a2a; border-radius:14px;
+    padding:28px; text-align:center; margin-top:20px;
+}
+.tt-placeholder i { color:#444; font-size:32px; }
+.tt-placeholder .t1 { color:#666; font-size:13px; margin-top:10px; }
+.tt-placeholder .t2 { color:#444; font-size:11px; margin-top:4px; }
+.tt-steps { display:flex; gap:10px; margin-top:14px; }
+.tt-step { flex:1; background:#111; border-radius:10px; padding:12px; text-align:center; }
+.tt-step .num { width:26px; height:26px; border-radius:50%; background:#FE2C55; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600;
+    margin:0 auto 6px; }
+.tt-step .label { color:#999; font-size:11px; }
 </style>
 
 <div class="tt-header">
@@ -959,8 +973,22 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
             st.info("ตรวจสอบว่า API Key ถูกต้อง และยังไม่เกินโควตาการใช้งาน")
 
 # ==========================================
-# แสดงใบงาน
+# แสดงใบงาน (หรือพื้นที่ตัวอย่าง+ขั้นตอนใช้งาน ถ้ายังไม่ได้สร้าง)
 # ==========================================
+if not st.session_state.worksheet_html:
+    st.markdown("""
+    <div class="tt-placeholder">
+      <div style="font-size:32px;">📄</div>
+      <div class="t1">ผลลัพธ์ใบงานจะแสดงที่นี่</div>
+      <div class="t2">กรอกข้อมูลสินค้าแล้วกด "สร้างใบงาน" ด้านบน</div>
+      <div class="tt-steps">
+        <div class="tt-step"><div class="num">1</div><div class="label">กรอกสินค้า</div></div>
+        <div class="tt-step"><div class="num">2</div><div class="label">อัปโหลดรูป</div></div>
+        <div class="tt-step"><div class="num">3</div><div class="label">กดสร้างใบงาน</div></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if st.session_state.worksheet_html:
     st.success(f"✅ สร้างใบงานสำเร็จ! (โมเดลข้อความ: {st.session_state.used_model})")
     if st.session_state.image_note:
