@@ -52,11 +52,18 @@ def check_password() -> bool:
     if st.session_state.get("password_ok"):
         return True
     st.markdown("""
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+    html, body, .stApp, .stApp * { font-family: 'IBM Plex Sans Thai','Segoe UI',sans-serif !important; }
     .stApp { background: #0a0a0a; }
     .stApp p, .stApp label, .stApp span { color: #e8e8e8; }
+    [data-testid="stHeader"] { background: transparent !important; }
     .stTextInput input { background:#141414 !important; color:#eee !important;
-        border:0.5px solid #2a2a2a !important; border-radius:10px !important; }
+        border:1px solid #2a2a2a !important; border-radius:12px !important; }
+    .stTextInput input:focus { border-color:#00F2EA !important;
+        box-shadow:0 0 0 3px rgba(0,242,234,0.12) !important; }
+    .stButton button { background:#FE2C55 !important; color:#fff !important;
+        border:none !important; border-radius:12px !important; font-weight:600 !important; }
     </style>
     <div style="text-align:center; padding: 40px 0 20px;">
       <div style="font-size:40px;">🔒</div>
@@ -78,52 +85,69 @@ if not check_password():
 
 # ===== ธีม TikTok พื้นดำ + สีฟ้าไซแอน/ชมพูแดง =====
 st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* พื้นหลังแอปเป็นสีดำแบบ TikTok */
+/* ===== ฟอนต์ไทยคมชัด ทั้งแอป ===== */
+html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
+    font-family: 'IBM Plex Sans Thai', 'Segoe UI', sans-serif !important;
+}
+/* พื้นหลังแอปดำแบบ TikTok */
 .stApp { background: #0a0a0a; }
-[data-testid="stMainBlockContainer"] { max-width: 1100px; padding-top: 3.5rem; }
-/* ให้แถบเครื่องมือด้านบนของ Streamlit โปร่งใสเข้าธีมดำ ไม่บังหัว */
+[data-testid="stMainBlockContainer"] { max-width: 1080px; padding-top: 3rem; }
 [data-testid="stHeader"] { background: transparent !important; }
-/* ข้อความทั่วไปเป็นสีขาว */
 .stApp, .stApp p, .stApp label, .stApp span, .stApp div { color: #e8e8e8; }
-/* หัวข้อ label ของช่องกรอก */
-[data-testid="stTextArea"] label, [data-testid="stFileUploader"] label { color: #fff !important; font-weight: 500 !important; }
-/* กล่องกรอกข้อความพื้นเข้ม */
+[data-testid="stTextArea"] label, [data-testid="stFileUploader"] label,
+[data-testid="stRadio"] label { color: #fff !important; font-weight: 500 !important; }
+/* กล่องกรอก + โฟกัสเรืองแสงฟ้า */
 .stTextArea textarea, .stTextInput input {
     background: #141414 !important; color: #eee !important;
-    border: 0.5px solid #2a2a2a !important; border-radius: 10px !important;
+    border: 1px solid #2a2a2a !important; border-radius: 12px !important;
+    font-size: 15px !important;
 }
-/* ปุ่มอัปโหลด */
+.stTextArea textarea:focus, .stTextInput input:focus {
+    border-color: #00F2EA !important; box-shadow: 0 0 0 3px rgba(0,242,234,0.12) !important;
+}
 [data-testid="stFileUploader"] section {
-    background: #141414 !important; border: 1.5px dashed #333 !important; border-radius: 10px !important;
+    background: #141414 !important; border: 1.5px dashed #333 !important; border-radius: 12px !important;
 }
-/* ปุ่มหลัก (สร้างใบงาน) สีชมพูแดง TikTok */
+[data-testid="stFileUploader"] section:hover { border-color: #00F2EA !important; }
+/* ปุ่มหลักสีชมพูแดง TikTok + ยกตอน hover */
 .stButton button[kind="primary"], .stButton button {
     background: #FE2C55 !important; color: #fff !important;
-    border: none !important; border-radius: 10px !important;
-    font-weight: 500 !important; font-size: 16px !important; padding: 12px !important;
+    border: none !important; border-radius: 12px !important;
+    font-weight: 600 !important; font-size: 16px !important; padding: 13px !important;
+    transition: transform .08s ease, background .15s ease !important;
 }
-.stButton button:hover { background: #e02248 !important; }
+.stButton button:hover { background: #ff1744 !important; transform: translateY(-1px); }
+.stButton button:active { transform: translateY(0); }
+/* radio เลือกโหมด ให้ดูเป็น pill */
+[data-testid="stRadio"] [role="radiogroup"] { gap: 8px; }
 /* Sidebar พื้นเข้ม */
-[data-testid="stSidebar"] { background: #111 !important; }
+[data-testid="stSidebar"] { background: #0f0f0f !important; border-right: 1px solid #1f1f1f; }
 [data-testid="stSidebar"] * { color: #ddd !important; }
-/* การ์ดหัวและสถิติ */
+/* ===== หัวแอป + แถบเส้นไล่สีบนสุด ===== */
 .tt-header {
-    background: linear-gradient(0deg,#0a0a0a,#0a0a0a); padding: 20px 26px; border-radius: 14px;
-    border: 0.5px solid #1f1f1f; display: flex; align-items: center; gap: 14px; margin: 8px 0 18px;
+    position: relative; background: #111; padding: 22px 26px; border-radius: 16px;
+    border: 1px solid #1f1f1f; display: flex; align-items: center; gap: 14px; margin: 8px 0 20px;
+    overflow: hidden;
 }
-.tt-logo { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
-.tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 11px; }
+.tt-header::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background: linear-gradient(90deg,#00F2EA,#FE2C55);
+}
+.tt-logo { position: relative; width: 46px; height: 46px; flex-shrink: 0; }
+.tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 12px; }
 .tt-logo .l1 { background:#FE2C55; transform: translate(2px,2px); }
 .tt-logo .l2 { background:#00F2EA; transform: translate(-2px,-2px); }
-.tt-logo .l3 { background:#0a0a0a; display:flex; align-items:center; justify-content:center; font-size:22px; }
-.tt-title { font-size: 21px; font-weight: 600; color: #fff; letter-spacing:-0.3px; }
-.tt-sub { font-size: 13px; color: #8a8a8a; }
-.tt-stats { display:flex; justify-content:center; gap:26px; margin: 6px 0 22px; }
-.tt-stat { text-align:center; }
-.tt-stat .n { font-size:22px; font-weight:600; }
-.tt-stat .l { font-size:11px; color:#777; }
-.tt-divider { width:0.5px; background:#2a2a2a; }
+.tt-logo .l3 { background:#111; display:flex; align-items:center; justify-content:center; font-size:23px; }
+.tt-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing:-0.3px; line-height:1.2; }
+.tt-sub { font-size: 13px; color: #8a8a8a; margin-top:2px; }
+.tt-stats { display:flex; justify-content:center; gap:0; margin: 4px 0 24px;
+    background:#111; border:1px solid #1f1f1f; border-radius:14px; padding:14px 0; }
+.tt-stat { text-align:center; flex:1; }
+.tt-stat .n { font-size:23px; font-weight:700; letter-spacing:-0.5px; }
+.tt-stat .l { font-size:11px; color:#888; margin-top:2px; }
+.tt-divider { width:1px; background:#222; margin:4px 0; }
 </style>
 
 <div class="tt-header">
