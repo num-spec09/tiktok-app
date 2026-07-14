@@ -122,12 +122,22 @@ html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
 }
 [data-testid="stFileUploader"] section button span { display:inline-block !important; }
 [data-testid="stFileUploaderDropzoneInstructions"] { color:#888 !important; }
-/* ซ่อนปุ่มพับ sidebar ตัวเก่าที่แสดงชื่อไอคอนแทนตัวไอคอน (ฟอนต์ไม่โหลด) ใส่ลูกศรเองแทน */
-[data-testid="stSidebarCollapsedControl"] button span[data-testid="stIconMaterial"] {
-    font-size: 0 !important;
+/* ซ่อนตัวหนังสือทั้งหมดในปุ่มพับ sidebar แบบเหมารวม (กันชื่อไอคอน Material หลุดมา
+   ไม่ว่าโครงสร้างข้างในจะเป็นแบบไหน) แล้ววาดลูกศรเองด้วย CSS ล้วนๆ ไม่พึ่งฟอนต์ใดๆ */
+[data-testid="stSidebarCollapsedControl"] { position: relative; }
+[data-testid="stSidebarCollapsedControl"] * {
+    font-size: 0 !important; color: transparent !important;
 }
-[data-testid="stSidebarCollapsedControl"] button span[data-testid="stIconMaterial"]::before {
-    content: "»"; font-size: 20px !important; color: #fff;
+[data-testid="stSidebarCollapsedControl"] button {
+    background: #1a1a1a !important; border: 1px solid #2a2a2a !important;
+    border-radius: 8px !important; width: 32px !important; height: 32px !important;
+    position: relative !important;
+}
+[data-testid="stSidebarCollapsedControl"] button::after {
+    content: ""; position: absolute; top: 50%; left: 45%;
+    width: 7px; height: 7px;
+    border-top: 2px solid #fff; border-right: 2px solid #fff;
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 /* ปุ่มหลักสีชมพูแดง TikTok + ยกตอน hover */
 .stButton button[kind="primary"], .stButton button {
