@@ -113,12 +113,22 @@ html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
     padding: 14px !important;
 }
 [data-testid="stFileUploader"] section:hover { border-color: #00F2EA !important; }
-/* แก้ปุ่ม upload ข้อความซ้อน: จัดปุ่มให้สะอาด */
+/* แก้ปุ่ม upload ข้อความซ้อน: จัดปุ่มให้สะอาด เรียงเนื้อในแนวนอน กันซ้อนทับ */
 [data-testid="stFileUploader"] section button {
     background: #FE2C55 !important; color:#fff !important; border:none !important;
     border-radius: 8px !important; font-weight:500 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    gap: 6px !important; white-space: nowrap !important;
 }
+[data-testid="stFileUploader"] section button span { display:inline-block !important; }
 [data-testid="stFileUploaderDropzoneInstructions"] { color:#888 !important; }
+/* ซ่อนปุ่มพับ sidebar ตัวเก่าที่แสดงชื่อไอคอนแทนตัวไอคอน (ฟอนต์ไม่โหลด) ใส่ลูกศรเองแทน */
+[data-testid="stSidebarCollapsedControl"] button span[data-testid="stIconMaterial"] {
+    font-size: 0 !important;
+}
+[data-testid="stSidebarCollapsedControl"] button span[data-testid="stIconMaterial"]::before {
+    content: "»"; font-size: 20px !important; color: #fff;
+}
 /* ปุ่มหลักสีชมพูแดง TikTok + ยกตอน hover */
 .stButton button[kind="primary"], .stButton button {
     background: #FE2C55 !important; color: #fff !important;
@@ -135,28 +145,29 @@ html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
 [data-testid="stSidebar"] * { color: #ddd !important; }
 /* ===== หัวแอป + แถบเส้นไล่สีบนสุด ===== */
 .tt-header {
-    position: relative; background: #111; padding: 28px 32px; border-radius: 16px;
-    border: 1px solid #1f1f1f; display: flex; align-items: center; gap: 18px; margin: 4px 0 16px;
-    overflow: hidden;
+    position: relative; background: #111; padding: 30px 24px; border-radius: 16px;
+    border: 1px solid #1f1f1f; display: flex; flex-direction: column; align-items: center;
+    text-align: center; margin: 4px 0 16px; overflow: hidden;
 }
 .tt-header::before {
     content:''; position:absolute; top:0; left:0; right:0; height:4px;
     background: linear-gradient(90deg,#00F2EA,#FE2C55);
 }
-.tt-logo { position: relative; width: 58px; height: 58px; flex-shrink: 0; }
+.tt-logo { position: relative; width: 54px; height: 54px; margin-bottom: 12px; }
 .tt-logo .l1,.tt-logo .l2,.tt-logo .l3 { position: absolute; inset: 0; border-radius: 15px; }
 .tt-logo .l1 { background:#FE2C55; transform: translate(2px,2px); }
 .tt-logo .l2 { background:#00F2EA; transform: translate(-2px,-2px); }
-.tt-logo .l3 { background:#111; display:flex; align-items:center; justify-content:center; font-size:28px; }
-.tt-title { font-size: 27px; font-weight: 700; color: #fff; letter-spacing:-0.5px; line-height:1.2; }
-.tt-sub { font-size: 14px; color: #9a9a9a; margin-top:3px; }
-.tt-stats { display:flex; justify-content:center; gap:0; margin: 0 auto 16px;
-    background:#111; border:1px solid #1f1f1f; border-radius:14px; padding:16px 24px;
-    max-width: 560px; margin-left:auto; margin-right:auto; }
-.tt-stat { text-align:center; flex:1; }
-.tt-stat .n { font-size:23px; font-weight:700; letter-spacing:-0.5px; }
+.tt-logo .l3 { background:#111; display:flex; align-items:center; justify-content:center; font-size:26px; }
+.tt-title { font-size: 26px; font-weight: 700; color: #fff; letter-spacing:-0.5px; line-height:1.2; }
+.tt-sub { font-size: 14px; color: #9a9a9a; margin-top:4px; }
+/* กล่องสถิติ: ห่อด้วย wrapper ให้จัดกึ่งกลางจอจริง (ไม่เยื้องขวา) */
+.tt-stats-wrap { display:flex; justify-content:center; margin: 0 0 16px; width:100%; }
+.tt-stats { display:flex; gap:0;
+    background:#111; border:1px solid #1f1f1f; border-radius:14px; padding:16px 32px; }
+.tt-stat { text-align:center; padding:0 20px; }
+.tt-stat .n { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
 .tt-stat .l { font-size:11px; color:#888; margin-top:2px; }
-.tt-divider { width:1px; background:#222; margin:2px 0; }
+.tt-divider { width:1px; background:#222; }
 </style>
 
 <div class="tt-header">
@@ -167,12 +178,14 @@ html, body, .stApp, .stApp * , [data-testid="stSidebar"] * {
   </div>
 </div>
 
-<div class="tt-stats">
-  <div class="tt-stat"><div class="n" style="color:#00F2EA">5</div><div class="l">สไตล์สคริปต์</div></div>
-  <div class="tt-divider"></div>
-  <div class="tt-stat"><div class="n" style="color:#fff">A–E</div><div class="l">เลือกง่าย</div></div>
-  <div class="tt-divider"></div>
-  <div class="tt-stat"><div class="n" style="color:#FE2C55">~30วิ</div><div class="l">ต่อใบงาน</div></div>
+<div class="tt-stats-wrap">
+  <div class="tt-stats">
+    <div class="tt-stat"><div class="n" style="color:#00F2EA">5</div><div class="l">สไตล์สคริปต์</div></div>
+    <div class="tt-divider"></div>
+    <div class="tt-stat"><div class="n" style="color:#fff">A–E</div><div class="l">เลือกง่าย</div></div>
+    <div class="tt-divider"></div>
+    <div class="tt-stat"><div class="n" style="color:#FE2C55">~30วิ</div><div class="l">ต่อใบงาน</div></div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
