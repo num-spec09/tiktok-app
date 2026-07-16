@@ -431,6 +431,49 @@ def check_banned_words(data: dict) -> list:
     return found
 
 
+def auto_fix_banned_words(data: dict) -> dict:
+    """แก้คำต้องห้ามในทุกข้อความของ data ให้เป็นคำเลี่ยงอัตโนมัติแบบเงียบๆ (in-place)"""
+    dynamic = dict(BANNED_WORDS)
+    for a in data.get("avoid_words", []) or []:
+        if isinstance(a, dict) and a.get("bad"):
+            dynamic[a["bad"]] = a.get("good", "")
+
+    def fix(text):
+        if not text:
+            return text
+        out = text
+        for w, rep in dynamic.items():
+            if rep:  # เผื่อ good เป็นค่าว่าง ไม่แทนที่
+                out = out.replace(w, rep)
+        return out
+
+    for s in data.get("scripts", []) or []:
+        if not isinstance(s, dict):
+            continue
+        s["hook"] = fix(s.get("hook", ""))
+        s["content"] = fix(s.get("content", ""))
+        s["closings"] = [fix(x) for x in (s.get("closings", []) or [])]
+        for sh in s.get("shots", []) or []:
+            if isinstance(sh, dict):
+                sh["dialogue"] = fix(sh.get("dialogue", ""))
+
+    for lv in data.get("live_scripts", []) or []:
+        if not isinstance(lv, dict):
+            continue
+        for seg in lv.get("segments", []) or []:
+            if isinstance(seg, dict):
+                seg["talk"] = fix(seg.get("talk", ""))
+                seg["example"] = fix(seg.get("example", ""))
+        lv["closings"] = [fix(x) for x in (lv.get("closings", []) or [])]
+
+    for c in data.get("closing_lines", []) or []:
+        if isinstance(c, dict):
+            c["clip"] = fix(c.get("clip", ""))
+            c["live"] = fix(c.get("live", ""))
+
+    return data
+
+
 # ===== แปลศัพท์มุมกล้องภาษาอังกฤษเป็นไทย (เผื่อ AI หลุดมา) =====
 CAMERA_TERMS = [
     ("Extreme Close-up", "ถ่ายซูมใกล้มาก เห็นรายละเอียด"),
@@ -615,31 +658,9 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
         {rules_block}
         {avoid_table}'''
 
-    # ===== ส่วนตรวจคำต้องห้าม =====
+    # หมายเหตุ: คำต้องห้ามถูกแก้ให้เป็นคำเลี่ยงแบบเงียบๆ ไปแล้วตั้งแต่ก่อนเรียกฟังก์ชันนี้
+    # (ดูจุดเรียก auto_fix_banned_words ก่อน build_worksheet_html) จึงไม่ต้องมีตารางเตือนอีก
     banned_html = ""
-    banned_found = check_banned_words(data)
-    if banned_found:
-        rows = ""
-        for b in banned_found:
-            rows += f'''<tr>
-              <td class="bad-word">{b["word"]}</td>
-              <td class="good-word">{b["suggest"]}</td>
-              <td>{b["where"]}</td>
-            </tr>'''
-        banned_html = f'''
-        <div class="banned-box">
-          <div class="banned-title">⚠️ ตรวจพบคำที่ควรเลี่ยง {len(banned_found)} จุด</div>
-          <p class="note">ระบบพบคำที่อาจผิดกฎโฆษณา แนะนำแก้เป็นคำในคอลัมน์ขวาก่อนใช้จริง</p>
-          <table class="banned-table">
-            <tr><th>คำที่พบ</th><th>แนะนำเปลี่ยนเป็น</th><th>อยู่ตรงไหน</th></tr>
-            {rows}
-          </table>
-        </div>'''
-    else:
-        banned_html = '''<div class="banned-box ok">
-          <div class="banned-title" style="color:#0F6E56">✅ ไม่พบคำต้องห้าม</div>
-          <p class="note">ระบบตรวจแล้วไม่พบคำที่ผิดกฎโฆษณา แต่แนะนำให้คนตรวจอีกครั้งก่อนถ่ายจริง</p>
-        </div>'''
 
     clip_heading = ""
     if data.get("scripts"):
@@ -734,13 +755,10 @@ def build_worksheet_html(data: dict, shot_imgs: dict, product_uri: str,
   .live-time {{ color:#888; font-size:13px; font-weight:normal; }}
   .live-ex {{ background:#f0fbfa; border-radius:4px; padding:6px 10px; }}
   .live-eng {{ color:#C4502F; }}
-  .closing-table, .banned-table {{ width:100%; border-collapse:collapse; background:white; }}
-  .closing-table th, .banned-table th {{ background:#FBE3DA; color:#C4502F; padding:8px 12px; text-align:left; font-size:14px; }}
-  .closing-table td, .banned-table td {{ border:1px solid #F1D9D1; padding:8px 12px; vertical-align:top; }}
+  .closing-table {{ width:100%; border-collapse:collapse; background:white; }}
+  .closing-table th {{ background:#FBE3DA; color:#C4502F; padding:8px 12px; text-align:left; font-size:14px; }}
+  .closing-table td {{ border:1px solid #F1D9D1; padding:8px 12px; vertical-align:top; }}
   .cl-type {{ background:#FDF6F3; font-weight:bold; width:150px; }}
-  .banned-box {{ background:#FCEBEB; border:1px solid #F09595; border-radius:10px; padding:14px 18px; margin-top:16px; }}
-  .banned-box.ok {{ background:#E1F5EE; border-color:#5DCAA5; }}
-  .banned-title {{ font-weight:bold; color:#A32D2D; font-size:16px; margin-bottom:4px; }}
   .bad-word {{ color:#A32D2D; font-weight:bold; text-decoration:line-through; }}
   .good-word {{ color:#0F6E56; font-weight:bold; }}
   .closings-box {{ background:#FDF6F3; border-left:3px solid #E8714F; border-radius:0 6px 6px 0;
@@ -902,6 +920,7 @@ if st.button("🚀 สร้างใบงาน (Generate)", type="primary", u
                 raw = re.sub(r"^```(json)?|```$", "", resp1.text.strip(),
                              flags=re.MULTILINE).strip()
                 data = json.loads(raw)
+                data = auto_fix_banned_words(data)  # แก้คำต้องห้ามให้เป็นคำเลี่ยงแบบเงียบๆ ก่อนใช้งานต่อ
                 st.session_state.used_model = used_model
 
             # ---------- ขั้น 2: วาดภาพประกอบแต่ละช็อต ----------
